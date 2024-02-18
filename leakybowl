@@ -1,0 +1,84 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+// Color definitions
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+//Connected Pins
+const int FillButton = 0;
+
+
+//Variables
+unsigned long currentMillis = 0;
+unsigned long previousMillis = 0;
+const long leakInterval = 800;
+int FillButtonState = 0;
+int FillLevel = 128;
+int previousFillButtonState = 1;
+
+void setup() {
+  //Initializing Mini OLED Screen 115200
+  Serial.begin(115200);
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+  delay(2000);
+  display.clearDisplay();
+  display.fillRect(0, 0, 128, 64, WHITE);
+  display.display();
+
+  //Initializing FillButton
+  pinMode(FillButton, INPUT);
+}
+
+void loop() {
+  currentMillis = millis();
+  FillButtonState = digitalRead(FillButton);
+  Serial.println(FillButtonState);
+  Leak();
+}
+
+void Leak(){
+  if (currentMillis - previousMillis >= leakInterval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+    //Constant Decrease
+    display.drawLine(FillLevel, 0, FillLevel, 64, BLACK);
+    display.display();
+    FillLevel -= 1;
+  }
+
+  //Increase by 10 per press
+  if(!FillButtonState && previousFillButtonState){
+    previousFillButtonState = 0;
+    for (int i = FillLevel; i < FillLevel + 15; i++){
+      display.drawLine(i, 0, i, 64, WHITE);
+    }
+    display.display();
+    FillLevel += 15;
+  }
+
+    //checking for releasing button
+  if(!previousFillButtonState && FillButtonState){
+    previousFillButtonState = 1;
+  }
+
+    //Check for Past Max
+  if (FillLevel > 128){
+    FillLevel = 128;
+  }
+
+    //Check for Death
+  if (FillLevel == 0){
+    display.fillRect(0, 0, 128, 64, WHITE);
+    FillLevel = 128;
+    //Strike();
+  }
+}
